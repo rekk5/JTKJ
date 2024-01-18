@@ -1,0 +1,39 @@
+#.pos 0x00
+main:
+    #r11 and r12 are the numbers to be multiplied
+    #irmovq $6,%r11
+    #irmovq $5,%r12
+    irmovq $0,%rax #result
+    irmovq $1,%rcx #studied bit, add the first bit in the end if it is 1
+    irmovq $0,%rdx #is the studied bit 1 or 0, for AND operation result
+    irmovq $1,%rbx #step for counters
+    irmovq $0,%r8 #counter for which bit we're on (n-1)
+    irmovq $0,%r13 #for testing if we've already gone through all bits in r11
+    rrmovq %r11,%rdx #store r11 in rdx for test
+    andq %rcx,%rdx #is the first bit 1
+    je loop #if first bit is 0, move on
+    addq %r12,%rax #if first bit is 1, add r12 to answer already
+loop:
+    rrmovq %r12,%r14 #store r12 temporarily in r14 to preserve its initial value
+    irmovq $0,%r9 #counter for shifts
+    addq %rcx,%rcx #move to the next bit
+    addq %rbx,%r8 #move the counter of bits by one
+    rrmovq %r11,%r13 #store r11 in r13 to test if we've gone over
+    subq %rcx,%r13 #r13-rcx
+    jl end #if rcx > r13, move to end
+    rrmovq %r11,%rdx #move first multiplicant to rdx for AND
+    andq %rcx,%rdx #test if bit is 1
+    je loop #if the bit is 0, skip to the next one
+    jmp shifting
+shifting:
+    rrmovq %r8,%r10 #this is our cap for shifts (n-1)
+    xorq %r9,%r10 #is the counter different than cap
+    je sum #if counter == cap, go back to loop
+    addq %r14,%r14 #r14 <<= 1
+    addq %rbx,%r9 #counter++
+    jmp shifting
+sum:
+    addq %r14,%rax #add the shifted values to answer
+    jmp loop
+end:
+    halt

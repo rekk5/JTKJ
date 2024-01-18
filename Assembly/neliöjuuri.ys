@@ -1,0 +1,106 @@
+#.pos 0x000
+main:
+    #irmovq $100,%r12 #num
+    irmovq $65536,%r8 #bit = 1 << 16
+    irmovq $0,%rcx #res
+    irmovq stack,%rbp # beginning address of stack
+    irmovq stack,%rsp # address of the top value in stack
+    irmovq lookuptable, %rdx #pointer to lookup table
+    irmovq $16, %r14 #LUT pointer mover
+firstloop:
+    rrmovq %r12,%r9 #store num in r9
+    subq %r8,%r9 #compare bit to num in r9
+    jge secondloop #continue to the second loop if bit < num
+    call shiftbit
+    jmp firstloop
+secondloop:
+    irmovq $0,%r10 #store comparator to 0 in r10
+    subq %r10,%r8 #compare bit to 0
+    je end # while bit != 0
+    rrmovq %rcx,%r11 #store res in r11 for addition
+    addq %r8,%r11 #res + bit
+    rrmovq %r11,%r13 #store sum in r13 for comparison
+    subq %r12,%r13 #check if num >= res + bit
+    jle partone #first couple of sums
+    jmp parttwo #second singular shift
+partone:
+    subq %r11,%r12 #num -= res + bit
+    pushq %rdx #save LUT pointer
+    call division #res >> 1
+    popq %rdx #return LUT pointer to rdx
+    addq %r8,%rcx #res = (res >> 1) + bit
+    call shiftbit #do this every loop
+    jmp secondloop
+parttwo:
+    pushq %rdx #save LUT pointer
+    call division
+    popq %rdx #return LUT pointer to rdx
+    call shiftbit #call this every loop
+    jmp secondloop
+end:
+    halt
+
+
+.pos 0x400
+stack:
+
+.pos 0x300
+.align 8
+lookuptable:
+    .quad 0x10000
+    .quad 0x8000
+    .quad 0x4000
+    .quad 0x2000
+    .quad 0x1000
+    .quad 0x0800
+    .quad 0x0400
+    .quad 0x0200
+    .quad 0x0100
+    .quad 0x0080
+    .quad 0x0040
+    .quad 0x0020
+    .quad 0x0010
+    .quad 0x0008
+    .quad 0x0004
+    .quad 0x0002
+    .quad 0x0001
+    .quad 0x0000
+
+.pos 0x200
+shiftbit:
+    #this function shifts bit by 2, bit >>= 2
+    mrmovq (%rdx),%r8 #move the shifted value from the table to bit
+    addq %r14,%rdx #increase LUT pointer by 16
+    ret
+
+.pos 0x100
+division:
+    # rsi (res) >>= 1
+    pushq %r13 #push r13 to stack
+    pushq %r14 #push r14 to stack
+    irmovq $0,%r13 #for comparing counter cap and rdi
+    irmovq $0,%rdx #comparer but one bit to the right, for summing later
+    rrmovq %rcx,%rsi # store res in rsi
+    irmovq $1,%rdi #1 for removing LSB
+    rrmovq %rsi,%rax #for AND
+    andq %rdi,%rax # res & 1
+    je shiftloop
+    irmovq $1,%rdi #make it 1 for removing LSB, convenient comparer for looping as it's 0b0001
+    subq %rdi,%rsi #remove LSB from res since it's getting cut anyway
+shiftloop:
+    irmovq $0x10000,%r14 #cap to which bits we want to study
+    xorq %rdi,%r14 # comparer XOR cap, 0 if the same
+    je stopshift #if XOR is 0 then cap has been reached, move to end
+    rrmovq %rdi,%rdx #makes the "bit to the right" the bit we're using right now
+    addq %rdi,%rdi #comparer <<= 1
+    rrmovq %rsi,%rax #store res in rax
+    andq %rdi,%rax #compare bits
+    je shiftloop #if both 0, move on
+    subq %rdi,%rsi #makes the bit in question 0
+    addq %rdx,%rsi #adds 1 to the bit to the right, essentially shifting it
+    jmp shiftloop
+stopshift:
+    rrmovq %rsi,%rcx #move res back to rcx
+    popq %r14
+    popq %r13
+    ret

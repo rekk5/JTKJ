@@ -1,0 +1,23 @@
+main:
+    irmovq $0,%r8 #counter
+    irmovq $0,%r9 #sum
+    irmovq $1,%r10 #counter step
+moveptr:
+    rrmovq %rsp,%rbx #store stack ptr address
+    subq %rbp,%rbx #compare stack ptr address to start
+    je isend
+    jmp loop
+loop:
+    popq %rbx #get top stack value
+    addq %rbx,%r9
+    addq %r10,%r8
+    jmp moveptr
+isend:
+    subq %r8,%r9
+    jg above
+    jl below
+above:
+    addq %r10,%rax
+    jmp isend
+below:
+    halt

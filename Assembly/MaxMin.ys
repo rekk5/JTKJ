@@ -1,0 +1,23 @@
+main:
+    irmovq $1,%rcx #round step
+    irmovq $0,%r13
+    popq %r8
+    subq %r13,%rax #compare is it first round
+    je firstround
+    rrmovq %rsi,%r9 #store old minimum to test reg
+    rrmovq %rdi,%r10 #store old maximum to test reg
+    subq %r8,%r9 #compare new value to old min
+    cmovg %r8,%rsi
+    subq %r8,%r10 #compare new value to old max
+    cmovl %r8,%rdi
+    rrmovq %rsp,%rbx #store stack ptr address
+    subq %rbp,%rbx #compare stack ptr address to start
+    je isend
+    jmp main
+firstround:
+    rrmovq %r8,%rsi #make 1st value both min and max to avoid issues with 0
+    rrmovq %r8,%rdi
+    addq %rcx,%rax #increase counter
+    jmp main
+isend:
+    halt

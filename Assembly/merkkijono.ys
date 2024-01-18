@@ -1,0 +1,17 @@
+main:
+    irmovq      $0,     %r10    # constant 0
+    irmovq      $1,     %r9     # constant 1
+    irmovq      $8,     %r8     # constant 8
+    irmovq      $0x400, %rbx    # addr of first element of array
+    irmovq      $-1,    %rax    # init array length register %rax to -1
+                                # because we also count end of array zero
+                                # (this is kinda dirty)
+
+count:
+    addq        %r9,    %rax    # increment array length register %rax
+    mrmovq      (%rbx), %rcx    # move first element of array to %rcx
+    addq        %r8,    %rbx    # increment array address register by 8
+    subq        %r10,   %rcx    # compare to zero (end of array)
+    jne         count           # loop while zero not found
+    halt
+ 

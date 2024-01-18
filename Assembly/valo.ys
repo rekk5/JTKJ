@@ -1,0 +1,20 @@
+main:
+    irmovq $0xF000,%rax # E mask
+    irmovq $0x0FFF,%rbx # R mask
+    rrmovq %r13,%r14 #store test value in R reg
+    andq %rbx,%r13 #get R values
+    andq %rax,%r14 #get E values
+    irmovq $0,%rdx
+    irmovq $1,%rcx
+    irmovq $4096,%rsi #divident for >> 12
+    rrmovq %r14,%rdi
+loop:
+    subq %rsi,%rdi
+    jg above
+    jl below
+above:
+    addq %rcx,%rdx
+    jmp loop
+below:
+    rrmovq %rdx,%r14
+    halt

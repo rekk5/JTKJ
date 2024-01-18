@@ -1,0 +1,234 @@
+main:
+    #Tuomas Määttä Y52891811
+    #Määrittele rekisterit pääohjelman käyttämille päämuuttujille
+    irmovq stack,%rbp # Pinon alkukohta
+    irmovq stack,%rsp # Pinon ylin arvo
+    #irmovq array,%r11 #Palauttaa testitaulukon aloituspisteen
+lueluku:
+    mrmovq (%r11),%rcx #Siirtää testiarvo muistista testausrekisteriin
+    pushq %rcx #Tallentaa testattavan luvun pinoon
+    irmovq $0,%r10 #0 vertailua varten
+    xorq %rcx,%r10 #onko rcx nolla
+    je nolla #Jos rcx XOR 0 == 0, testaus on valmis, lopetus
+    rrmovq %rcx,%r12 #Siirrä testattava luku r12:een testausta varten
+    pushq %r11 #Tallenna taulukon osoitin
+    call onFibonacci #Testaa, onko arvo Fibonaccin luku
+    popq %r11 #Palauta taulukon osoitin
+    rrmovq %rbx,%rdi #Siirrä isFibonacci:n tulos rdi:hin testiä varten
+    irmovq $1,%r9 #Testibitti, onko testi hyväksytty
+    xorq %r9,%rdi #Testaa, XOR == 1, jos isFibonacci = 0
+    popq %rax #Hakee alkuperäisen luvun rax:iin
+    jne lopetalukeminen #Jos XOR != 0
+    irmovq $8,%r8 #Askel taulukon osoittimen siirtämiseen
+    addq %r8,%r11 #Siirrä osoitin, XOR == 1
+    jmp lueluku
+lopetalukeminen:
+    #popq %rcx
+    #rrmovq %rcx,%rax #Siirrä ensimmäinen ei-Fibonaccin luku rax:iin
+    halt
+nolla:
+    #popq %rcx
+    #rrmovq %rcx,%rax #Siirrä 0 rax:iin
+    halt
+nelio:
+    #Laskee neliöjuuren rekisteristä r12 ja palauta sen rcx:ssään
+    irmovq $0x1000000,%r8 #bit = 1 << 28
+    irmovq $0,%rcx #Tulos
+    irmovq hakutaulu, %rdx #Osoitin hakutalukosta
+    irmovq $16, %r14 #LUT:n osoitinmuuttuja
+enssilmukka:
+    rrmovq %r12,%r9 #Tallena luku1 r9:ään
+    subq %r8,%r9 #Vertaa bittiä r8 lukuun r9
+    jge toinensilmukka #jatkaa toiseen silmukkaan, jos r9 > r8
+    call siirrabitti
+    jmp enssilmukka
+toinensilmukka:
+    irmovq $0,%r10 #Tallentaa vertailuluvun r10:een
+    subq %r10,%r8 #Vertailen bittiä r8 lukuun r10
+    je endsqrt #Kun bitti != 0
+    rrmovq %rcx,%r11 #Tallenna tulos r11:een liäystä varten
+    addq %r8,%r11 #Tulos + bitti
+    rrmovq %r11,%r13 #Tallenna summa r13:een vertailua varten
+    subq %r12,%r13 #Tarkista onko luku1 >= summa
+    jle enssumma #Ensimmäiset summat
+    jmp toinensiirto #Toinen yksittäinen siirto
+enssumma:
+    subq %r11,%r12 #Luku1 - tulos + bitti
+    pushq %rdx #Tallenna LUT:n osoitin
+    call jako #Tulos >> 1
+    popq %rdx #Palauta LUT:n osoitin rdx:ään
+    addq %r8,%rcx #Tulos = (tulos >> 1) + bitti
+    call siirrabitti #Tee tämä joka silmukassa
+    jmp toinensilmukka
+toinensiirto:
+    pushq %rdx #Tallenna LUT:n osoitin
+    call jako
+    popq %rdx #Palauta LUT:n osoitin rdx:ään
+    call siirrabitti #Kutsu siirtofunktiota joka kierroksella
+    jmp toinensilmukka
+endsqrt:
+    ret
+
+jako:
+    # rsi (tulos) >>= 1
+    irmovq $0,%r13 #Vertailuarvo rajan ja rdi:n vertailuun
+    irmovq $0,%rdx #Vertailuarvo, mutta yksi bitti oikealla, plus laskuun myöhemmin
+    rrmovq %rcx,%rsi #Tallenna tulos rsi:hin
+    irmovq $1,%rdi #1, että pystyy poistamaan LSB:n
+    rrmovq %rsi,%rax #AND-operaatiota varten
+    andq %rdi,%rax # tulos & 1
+    je siirtosilmukka #Jos vähiten merkitsevä bitti on 0, siirrytään eteenpäin
+    irmovq $1,%rdi #Aseta se 1:ksi vähiten merkitsevän bitin poistamiseksi, kätevä vertailuarvo silmukoinnille, koska se on 0b0001
+    subq %rdi,%rsi #Poistetaan vähiten merkisvä bitti, koska se leikataan muutenkin pois
+siirtosilmukka:
+    #irmovq $0x1000000,%r14 #Yläraja, jonka haluamme bittitarkistusta varten
+    #xorq %rdi,%r14 # Vertailu XOR-rajan, jos 0 on sama
+    #je stopshift #Jos XOR on 0, raja on saavutettu, siirry loppuun
+    rrmovq %rcx,%r14 #Tallentaa alkuperäisen tuloksen r14:een, jotta testataan ollan ko päästy MSB
+    subq %rdi,%r14 #Tarkistetaan onko vertailija suurempi kuin tulos
+    jle lopetasiirto #jos XOR on 0 niin yläraja on saavutettu, siirrytään loppuun
+    rrmovq %rdi,%rdx #Tekee oikeanpuolesesta bitistä käyttö bitin
+    addq %rdi,%rdi #Verrattava bitti<<1
+    rrmovq %rsi,%rax #Tallenttaa tulos rax:iin
+    andq %rdi,%rax #Vertaillaa bittejä
+    je siirtosilmukka #Jos molemmat on 0, siirrytään eteenpäin
+    subq %rdi,%rsi #Tehdään kyseisestä bitistä 0
+    addq %rdx,%rsi #Lisää 1 bittiin oikealla, eli liikuttaa sitä
+    jmp siirtosilmukka
+lopetasiirto:
+    rrmovq %rsi,%rcx #Siirtää tuloksen takaisin rcx:ään
+    ret
+
+kerto:
+    #Kerrotaan r11 ja r12, tulos rax:ssa
+    irmovq $0,%rax #Tulos
+    irmovq $1,%rcx #Tutkittava bitti, lisätään ensimmäinen bitti jos se loppuu yhteen
+    irmovq $0,%rdx #Onko tutkittava bitti 1 vai 0, AND-operaatiota varten
+    irmovq $1,%rbx #Askel laskurille
+    irmovq $0,%r8 #Laskuri, mikä bitti on kyseessä n-1
+    irmovq $0,%r13 #Testataan ollaanko menty kaikkien bittien läpi r11:sta
+    rrmovq %r11,%rdx #Tallentaa r11 rdx:ään testejä varten
+    andq %rcx,%rdx #Onko ensimmäinen bitti 1
+    je silmukka #Jos ensimmäinen bitti on 0, siirrytään eteenpäin
+    addq %r12,%rax #Jos ensimmäinen bitti on 1, lisätään r12 tulokseen
+silmukka:
+    rrmovq %r12,%r14 #Tallentaa r12 väliaikaisesti r14:ään, jotta alkuperäinen arvosäilyy
+    irmovq $0,%r9 #Laskuri siiroille
+    addq %rcx,%rcx #Siirrtytään seuraavaan bittiin
+    addq %rbx,%r8 #Siirtää laskurin bittiä yhdellä
+    rrmovq %r11,%r13 #Tallentaa r11 r13:een testaaksenn olemmeko mennyt yli
+    subq %rcx,%r13 #r13-rcx
+    jl endkerto #Jos rcx > r13, siirry loppuun
+    rrmovq %r11,%rdx #Siirtää ensimmäinen kertoja rdx:n AND operaatiota varten
+    andq %rcx,%rdx #Testataan onko bitti 1
+    je silmukka #Jos bitti on 0, siirrytään seuraavaan
+    jmp siirto
+siirto:
+    rrmovq %r8,%r10 #Siirtojen yläraja (n-1)
+    xorq %r9,%r10 #Onko laskuri eri, kuin yläraja
+    je sum #Jos laskuri == yläraja, siirrytakaisin silmukkaan
+    addq %r14,%r14 #r14 <<= 1
+    addq %rbx,%r9 #Laskuri ++
+    jmp siirto
+sum:
+    addq %r14,%rax #Lisätään siirretyt arvot vastaukseen
+    jmp silmukka
+endkerto:
+    ret
+
+siirrabitti:
+    #Tämä funktio sirtää bittiä 2 vasemalle
+    mrmovq (%rdx),%r8 #Siirrä taulukosta siirretty arvo bittiin
+    irmovq $16,%r14
+    addq %r14,%rdx #Kasvata LUT-osoitinta 16
+    ret
+    
+
+taydnelio:
+    #Laskee, onko arvo r12 täydelline neliö, ja palauttaa boolean arvon rbx:ssä
+    pushq %r12 #Tallenna r12 pinoon
+    call nelio
+    rrmovq %rcx,%rsi #r12 neliojuuri
+    rrmovq %rsi,%r11 #Siirrä r12 neliojuuri r11:een kertomista varten
+    rrmovq %rsi,%r12 #Sama kuin edellä, muutta r12:sta
+    call kerto #sqrt(r12)^2 -> rax
+    popq %r12
+    subq %rax,%r12 #Jos sqrt(x)^2 == x, 0 jos tosi
+    je taydtrue
+    jmp taydFalse
+taydtrue:
+    irmovq $1,%rbx #Jos tosi, arvo on 1
+    ret
+taydFalse:
+    irmovq $0,%rbx #Josepätosi, arvo on 0
+    ret
+
+onFibonacci:
+    #Testaa, onko arvo r12 Fibonacci-luku, ja palauttaa boolean-tuloksen rbx:sään
+    irmovq $5,%r11
+    pushq %r12
+    call kerto #5*x -> rax
+    popq %r12
+    rrmovq %rax,%r11
+    call kerto #5*x*x -> rax
+    rrmovq %rax,%r12 #Siirrä tulos r12
+    irmovq $4,%r9 #Lisää ja vähennä
+    subq %r9,%r12 #5*x*x - 4 -> r12
+    pushq %r12
+    call taydnelio
+    popq %r12
+    irmovq $1,%r8 #Testaa boolean
+    xorq %r8,%rbx #Testaa onko tulos 1
+    je fibonaccitosi #JOS XOR == 0, tulos on tosi
+    irmovq $4,%r9 #Lisää ja vähennä
+    addq %r9,%r12 #Takaisin 5*x*x
+    addq %r9,%r12 #5*x*x + 4
+    call taydnelio
+    irmovq $1,%r8 #Testaa boolean
+    xorq %r8,%rbx #Testaa onko tulos 1
+    je fibonaccitosi #JOS XOR == 0, tulos on tosi
+    jmp fibonacciepa
+fibonaccitosi:
+    irmovq $1,%rbx #Palauta true
+    ret
+fibonacciepa:
+    irmovq $0,%rbx #Palaute false
+    ret
+
+#Hakutaulukko bittien siirtämistä varten (=1 << 25) >>= 2
+.pos 0x500
+.align 8
+hakutaulu:
+    .quad 0x1000000
+    .quad 0x0800000
+    .quad 0x0400000
+    .quad 0x0200000
+    .quad 0x0100000
+    .quad 0x0080000
+    .quad 0x0040000
+    .quad 0x0020000
+    .quad 0x0010000
+    .quad 0x0008000
+    .quad 0x0004000
+    .quad 0x0002000
+    .quad 0x0001000
+    .quad 0x0000800
+    .quad 0x0000400
+    .quad 0x0000200
+    .quad 0x0000100
+    .quad 0x0000080
+    .quad 0x0000040
+    .quad 0x0000020
+    .quad 0x0000010
+    .quad 0x0000008
+    .quad 0x0000004
+    .quad 0x0000002
+    .quad 0x0000001
+    .quad 0x0000000
+
+
+.pos 0xB00
+stack:
+
+.pos 0x700
+array:

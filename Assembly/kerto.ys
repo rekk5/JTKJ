@@ -1,0 +1,8 @@
+main:
+    irmovq $1,%r8
+    loop:
+        addq %rdi,%rcx
+        subq %r8,%rsi
+        jg loop
+    rrmovq %rcx,%rax
+    halt
